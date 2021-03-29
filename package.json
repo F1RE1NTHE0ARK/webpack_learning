@@ -1,0 +1,25 @@
+{
+  "name": "webpack-demo",
+  "version": "1.0.0",
+  "description": "是一个模块打包工具，接收CommonJS，ES module ,CMD,AMD等打包规范，能打包一切格式的文件1",
+  "private": true,
+  "scripts": {
+    "bundle": "webpack"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/F1RE1NTHE0ARK/webpack_learning.git"
+  },
+  "author": "Dapao Wei",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/F1RE1NTHE0ARK/webpack_learning/issues"
+  },
+  "homepage": "https://github.com/F1RE1NTHE0ARK/webpack_learning#readme",
+  "devDependencies": {
+    "file-loader": "^6.2.0",
+    "url-loader": "^4.1.1",
+    "webpack": "^5.28.0",
+    "webpack-cli": "^4.6.0"
+  }
+}
