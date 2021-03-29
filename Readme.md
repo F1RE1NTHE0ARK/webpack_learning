@@ -1,6 +1,6 @@
 # webpack4
 
-是一个模块打包工具，接收CommonJS，ES module ,CMD,AMD等打包规范，能打包一切格式的文件
+是一个模块打包工具，接收CommonJS，ES module ,CMD,AMD等打包规范，能打包一切格式的文件1
 
 # 安装
 
