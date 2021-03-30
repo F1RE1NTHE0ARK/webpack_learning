@@ -100,7 +100,8 @@ npx webpack webpackconfig.js
 const path = require('path') //node的路径模块
 
 module.exports = {
-    //代表入口
+    //代表入口，相当于
+    //entry:{main:'./index.js'}
     entry: './index.js',
     //代表出口
     output: {
@@ -108,6 +109,8 @@ module.exports = {
         filename: 'bundle.js',
         //指打包到和webpack配置文件同目录下的bundle文件夹
         path:path.resolve(__dirname,'bundle')
+        //publicPath用于向导入的打包的js文件添加前缀
+        //例如publicPath:'http://cdn.com/'
     }
 }
 ```
@@ -194,5 +197,107 @@ module.exports ={
     "last 2 versions",
     "not ie <= 8"
   ]
+```
+
+## 字体图标
+
+在src的font里加入字体文件
+
+``` 
+/font
+iconfont.eot
+iconfont.svg
+iconfont.ttf
+iconfont.woff
+```
+
+写入样式
+
+``` scss
+//可以在iconfont网中，加入图标到购物车，然后添加到项目后，下载源文件，将iconfont.css里样式复制粘贴即可
+@font-face {font-family: "iconfont";
+    src: url('./font/iconfont.eot?t=1617069016974'); /* IE9 */
+    ...
+  }
+  
+  .iconfont {
+   ...
+  }
+  
+  .iconchayan:before {
+    content: "\e98c";
+  }
+  
+  .iconerweima:before {
+    content: "\e98d";
+  }
+```
+
+用file-loader在webpack.config.js中配置loader
+
+## plugins
+
+插件用于在webpack运行的某个特定阶段做一些操作
+
+## 自动生成根html
+
+> npm install html-webpack-plugin -D
+
+- 配置webpack.config.js
+
+``` json
+...
+plugins: [new HtmlWebpackPlugin(
+    {
+        //这是地址是模板文件
+        template:'src/index.html'
+    }
+)],
+output:{...}
+```
+
+``` html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>老子是模板</title>
+<script defer src="bundle.js"></script></head>
+<body>
+    <!--生成的文件里就会自动插入这个div-->
+    <div id="root"></div>
+</body>
+</html>
+```
+
+## 自动清除打包后未使用的文件
+
+> npm install clean-webpack-plugin -D
+
+配置webpack.config.js
+
+``` javascript
+const path = require('path')
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const {CleanWebpackPlugin} = require('clean-webpack-plugin');
+module.exports = {
+    mode: 'development',
+    entry: './src/index.js',
+    output: {
+        filename: 'bundle.js',
+        //这个必须写，不然CleanWebpackPlugin不知道去哪里清除未使用的文件
+        path: path.resolve(__dirname, 'dist'),
+    },
+    plugins: [new HtmlWebpackPlugin(
+        {
+            template:'src/index.html'
+        }
+    ),new CleanWebpackPlugin()],
+    module: {
+      ...
+    }
+}
 ```
 

@@ -1,12 +1,19 @@
 const path = require('path')
-
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const {CleanWebpackPlugin} = require('clean-webpack-plugin');
 module.exports = {
     mode: 'development',
-    entry: './src/index.js',
+    entry: {main:'./src/index.js',sub:'./src/index.js'},
     output: {
-        filename: 'bundle.js',
-        path: path.resolve(__dirname, 'dist')
+        publicPath:'http://cdn.com/',
+        filename: '[name].js',
+        path: path.resolve(__dirname, 'dist'),
     },
+    plugins: [new HtmlWebpackPlugin(
+        {
+            template:'src/index.html'
+        }
+    ),new CleanWebpackPlugin()],
     module: {
         rules: [
             {
@@ -20,16 +27,24 @@ module.exports = {
                 }
             },
             {
-                test: /\.s[ac]ss$/i,
+                test: /\.(eot|ttf|svg|woff|woff2)$/,
+                loader: 'file-loader',
+                options:{
+                    outputPath:'font/'
+                }
+            },
+            {
+                test: /\.css$/i,
                 use: [
                     "style-loader",
                     {
                         loader: "css-loader",
                         options: {
-                            importLoaders:2
+                            importLoaders: 1
                         }
                     },
-                    "sass-loader",
+                    //网络问题，没办法npm rebuild node-sass
+                    // "sass-loader",
                     "postcss-loader"
                 ],
             },
