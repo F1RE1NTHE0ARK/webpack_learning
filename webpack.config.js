@@ -1,21 +1,37 @@
 const path = require('path')
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const {CleanWebpackPlugin} = require('clean-webpack-plugin');
+const { CleanWebpackPlugin } = require('clean-webpack-plugin');
+const webpack = require('webpack')
+
 module.exports = {
     mode: 'development',
-    entry: {main:'./src/index.js',sub:'./src/index.js'},
+    devtool: 'cheap-module-source-map',
+    devServer: {
+        contentBase: './dist',
+        hot: true,
+        port: 8082,
+        host: '127.0.0.1',
+        // hotOnly:true,
+        open: true,
+        compress: true,
+    },
+    entry: { main: './src/index.js' },
     output: {
-        publicPath:'http://cdn.com/',
         filename: '[name].js',
         path: path.resolve(__dirname, 'dist'),
     },
     plugins: [new HtmlWebpackPlugin(
         {
-            template:'src/index.html'
+            template: 'src/index.html'
         }
-    ),new CleanWebpackPlugin()],
+    ), new CleanWebpackPlugin(), new webpack.HotModuleReplacementPlugin()],
     module: {
         rules: [
+            {
+                test: /\.m?js$/,
+                exclude: /node_modules/,
+                use: {loader: "babel-loader"}
+            },
             {
                 test: /\.(jpg|png|gif|jpeg)$/,
                 loader: 'url-loader',
@@ -23,14 +39,14 @@ module.exports = {
                     limit: 2048,
                     name: '[name].[ext]',
                     esModule: false,
-                    outputPath:'images/'
+                    outputPath: 'images/'
                 }
             },
             {
                 test: /\.(eot|ttf|svg|woff|woff2)$/,
                 loader: 'file-loader',
-                options:{
-                    outputPath:'font/'
+                options: {
+                    outputPath: 'font/'
                 }
             },
             {

@@ -301,3 +301,252 @@ module.exports = {
 }
 ```
 
+## sourceMap
+
+代表源代码和打包后代码的映射关系
+
+通过在webpack.config.js里配置devtool选项来让报错信息更明确
+
+``` javascript
+const path = require('path')
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const {CleanWebpackPlugin} = require('clean-webpack-plugin');
+module.exports = {
+    mode: 'development',
+    devtool:'source-map', 
+    //https://webpack.docschina.org/configuration/devtool/
+    //这个值可以查文档，打包速度越慢，报错信息越明确
+    entry: {main:'./src/index.js'},
+    output: { ...},
+    plugins: [...],
+    module: {...}
+}
+```
+
+## webpack-dev-server实现热更新
+
+我们需要实现更新代码的同时实时更新更新页面
+
+webpack5直接配置webpack.config.js即可
+
+``` javascript
+const webpack = require('webpack') //引入以使用webpack自带的热更新插件
+...
+//其实配不配置这个插件，webpack5只要配置了hot为true都会热更新
+plugins: [...,new webpack.HotModuleReplacementPlugin()],
+devServer: {
+    contentBase: "./dist",//本地服务器所加载的页面所在的目录
+    historyApiFallback: true,//不跳转
+    host:'127.0.0.1', //相当于localhost
+    port:8080,
+    inline: true,//实时刷新
+    hotOnly:true, //热更新失败也不要刷新页面
+    hot:true,//热更新
+    compress:true,//Enable gzip compression for everything served
+    overlay: true, //Shows a full-screen overlay in the browser
+    stats: "errors-only" ,//To show only errors in your bundle
+    open:true, //第一次编译时在浏览器打开
+    proxy:{ // 通过proxy属性添加代理服务配置,其中 每一个属性就是一个代理规则的配置
+            '/api' :{// 属性的名称就是要被代理的请求路径前缀,它的值就是为这个前缀匹配到的代理规则配置
+                target:"https://api.github.com",
+                // http://localhost:8080/api/users ==> https://api.github.com/api/users
+                // 因为我们实际要请求的地址是https://api.github.com/api/users,所以我们需要通过重写的方式去掉/api
+                pathRewrite:{ // pathRewrite会以正则的方式去替换我们请求的路径
+                    "^/api":""
+                },
+                // 因为代理服务器默认会以我们实际在浏览器中请求的主机名(例如我们的localhost:8080)作为代理请求的主机名
+                // 也就是说，我们在浏览器端对代理过后的地址发起请求，这个请求背后还需要去请求到github服务器，请求的过程中会带一个主机名
+                // 这个主机名默认会用我们在浏览器端发起请求的主机名，也就是localhost:8080
+                // 而一般情况下，服务器内需要根据主机名判断这个主机名属于哪个网站，从而把这个请求指派到对应网站
+                changeOrigin:true 
+            }
+        }
+ }
+```
+
+记住要把package.json里的browserslist去掉，否则无法进行热更新
+
+``` json
+//这个要去掉
+"browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not ie <= 8"
+  ]
+```
+
+此时打包的文件会存在内存当中以加快打包速度，不会在dist文件夹中生成文件
+
+## webpack-dev-middle和express自己搭建服务器
+
+没什么意义...
+
+根目录下的server.js
+
+``` javascript
+const express = require('express')
+const webpack = require('webpack')
+const webpackDevMiddleWare = require('webpack-dev-middleware')
+const config = require('./webpack.config.js')
+const complier = webpack(config);
+
+const app = express()
+app.use(webpackDevMiddleWare(complier,{
+    publicPath:config.output.publicPath
+}))
+
+app.listen(3000,()=>{
+    //服务器开始后提示信息
+    console.log('老子开始咯！~~')
+})
+```
+
+## 适配babel来编译es6
+
+> npm install --save-dev babel-loader @babel/core
+>
+> npm install @babel/preset-env --save-dev
+
+配置webpack.config.js
+
+``` json
+rules:[
+    ...
+     {
+        test: /\.m?js$/,
+        //不编译node_modules里的东西
+        exclude: /node_modules/,
+        use: {
+          loader: "babel-loader",
+          options: {
+            presets: ['@babel/preset-env']
+          }
+        }
+      }
+]
+```
+
+在根目录创建babel.config.json文件添加如下代码
+
+``` json
+{
+  "presets": ["@babel/preset-env"]
+}
+```
+
+!!! 注意，此时只是语法转换了，但旧浏览器还是识别不了promise等新语法
+
+## @babel/polyfill为低版本浏览器添加es6语法并减小体积
+
+**主要用于写业务代码**
+
+> npm install --save @babel/polyfill 
+>
+> 注意是运行时依赖，而不是开发依赖
+
+配置webpack.config.js
+
+``` json
+rules:[
+    ...
+     {
+         test: /\.m?js$/,
+         exclude: /node_modules/,
+         use: {
+             loader: "babel-loader",
+             options: {
+                 presets:[['@babel/preset-env',{
+                     //只注入用过的语法来减小打包体积
+                     useBuiltIns:'usage',
+                     //目标浏览器
+                      target: {
+                          //大于某个版本跟
+                          chrome: "58",
+                          ie: "11"
+                      },
+                     //指定codejs版本，不写也没关系
+                     corejs: { version: "3.9", proposals: true }	
+                 }]]
+             }
+         }
+     },
+]
+```
+
+## @babel/plugin-transform-runtime来减小打包体积
+
+**主要用于写第三方库**
+
+> npm install --save-dev @babel/plugin-transform-runtime
+>
+> npm install --save @babel/runtime
+
+webpack.config.js
+
+``` json
+rules:[
+     {
+                test: /\.m?js$/,
+                exclude: /node_modules/,
+                use: {
+                    loader: "babel-loader",
+                    options: {
+                        //添加plugins配置
+                        "plugins": [["@babel/plugin-transform-runtime", {
+                            //以下为默认配置，其他参考网站
+                            //https://www.babeljs.cn/docs/babel-plugin-transform-runtime
+                            "absoluteRuntime": false,
+                            "corejs": false,
+                            "helpers": true,
+                            "regenerator": true,
+                            "version": "7.0.0-beta.0"
+                        }]]
+                        // presets: [['@babel/preset-env', {
+                    }
+                }
+            },
+]
+```
+
+## babel配置写在babel.config.json里
+
+``` json
+//babel.config.json （在根目录）
+{
+    "plugins": [["@babel/plugin-transform-runtime", {
+        "absoluteRuntime": false,
+        "corejs": false,
+        "helpers": true,
+        "regenerator": true,
+        "version": "7.0.0-beta.0"
+    }]]
+    // "presets": [
+    //     [
+    //         "@babel/preset-env",
+    //         {
+    //             "useBuiltIns": "usage",
+    //             "targets": {
+    //                 "chrome": "58",
+    //                 "ie": "11"
+    //             },
+    //             "corejs": {
+    //                 "version": "3.9",
+    //                 "proposals": true
+    //             }
+    //         }
+    //     ]
+    // ]
+}
+```
+
+``` javascript
+//webpack.config.js
+rules:[
+    {
+        test: /\.m?js$/,
+        exclude: /node_modules/,
+        use: {loader: "babel-loader"}
+    }
+]
+```
+
