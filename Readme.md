@@ -154,3 +154,45 @@ module: {
     }
 ```
 
+## 样式loader
+
+!记得安装对应loader
+
+> npm install autoprefixer -D 用于为css添加兼容的浏览器前缀，例如-webkit-,-os-...
+
+``` json
+//webpack.config.js
+rules:[
+    ...
+    {
+        test: /\.s[ac]ss$/i,
+        //要按顺序添加
+        use: [
+            "style-loader",
+            "css-loader",
+            "sass-loader",
+            "postcss-loader"
+        ],
+    },
+]
+```
+
+``` json	
+//postcss.config.js
+module.exports ={
+    plugins:[
+        require('autoprefixer')
+    ]
+}
+```
+
+因为新版本的浏览器已经不用去兼容厂商，所以需要在package.json中配置broswerlist来兼容老版本浏览器
+
+``` json
+"browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not ie <= 8"
+  ]
+```
+
