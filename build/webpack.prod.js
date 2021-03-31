@@ -3,16 +3,24 @@ const commonConfig = require('./webpack.common')
 
 const prodConfig = {
     mode: 'production',
-    optimization:{
+    optimization: {
         minimize: true,
         usedExports: true,
         concatenateModules: true,
         removeEmptyChunks: false,
-        splitChunks:{
+        chunkIds: 'named',
+        splitChunks: {
             chunks: 'all',
+            cacheGroups: {
+                vendors: {
+                    test: /[\\/]node_modules[\\/]/,
+                    priority: -10,
+                    filename: "[name].js"
+                },
+            },
         }
     },
-    
+
 }
 
-module.exports = webpackMerge.merge(prodConfig,commonConfig)
+module.exports = webpackMerge.merge(prodConfig, commonConfig)

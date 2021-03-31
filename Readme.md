@@ -713,9 +713,9 @@ module.exports = webpackMerge.merge(devConfig,commonConfig)
 
 [lodash使用](https://www.lodashjs.com/)
 
-# 分包
+# 代码分割
 
-## 手动分包
+## 手动分割
 
 通过将第三方库，单独打包来减少浏览器请求资源来优化体验
 
@@ -736,7 +736,7 @@ console.log(_.join(['a','b','c'],'***'))
 }
 ```
 
-## 自动分包
+## 自动分割
 
 通过配置webpack配置下的*optimization*内的SplitChunksPlugin来自动分包
 
@@ -756,18 +756,54 @@ console.log(_.join(['a','b','c'],'***'))
 
 ``` javascript
 //动态加载lodash.js
-function getComponent(){
-    return import('lodash').then(({default:_})=>{
-        var element = document.createElement('div')
-        element.innerHTML = _.join(['D','S','A'],'-')
-        return element;
-    })
+async function getComponent(){
+    const element = document.createElement('div')
+    //webpackChunkName用于指定动态载入分包后的名字
+    //不写则用默认的vendor.node_modules..什么的
+    const { default: _ } = await import(/* webpackChunkName:"lodash" */'lodash');
+    element.innerHTML = _.join(['D','S','A'],'-')
+    return element;
 }
 getComponent().then(res=>{
     document.body.append(res)
 })
 
 ```
+
+## split-chunks-plugin详解
+
+[详解](https://webpack.docschina.org/plugins/split-chunks-plugin/)
+
+``` javascript
+module.exports = {
+  //...
+  optimization: {
+    splitChunks: {
+      chunks: 'async', // 代码分割时对异步代码生效，all：所有代码有效，inital：同步代码有效
+      minSize: 30000, // 代码分割最小的模块大小，引入的模块大于 30000B 也就是30kb 才做代码分割
+      maxSize: 0, // 代码分割最大的模块大小，大于这个值要进行代码分割，一般使用默认值
+      minChunks: 1, // 引入的次数大于等于1时才进行代码分割
+      maxAsyncRequests: 6, // 最大的异步请求数量,也就是同时加载的模块最大模块数量
+      maxInitialRequests: 4, // 入口文件做代码分割最多分成 4 个 js 文件
+      automaticNameDelimiter: '~', // 文件生成时的连接符
+      automaticNameMaxLength: 30, // 自动生成的文件名的最大长度
+      cacheGroups: {
+        vendors: {
+          test: /[\\/]node_modules[\\/]/, // 位于node_modules中的模块做代码分割
+          priority: -10, // 根据优先级决定打包到哪个组里，例如一个 node_modules 中的模块进行代码
+            filename = "vendor.js" //用于自定义分类名称，支持占位符
+        }, // 分割，，既满足 vendors，又满足 default，那么根据优先级会打包到 vendors 组中。
+        default: { // 没有 test 表明所有的模块都能进入 default 组，但是注意它的优先级较低。
+          priority: -20, //  根据优先级决定打包到哪个组里,打包到优先级高的组里。
+          reuseExistingChunk: true // //如果一个模块已经被打包过了,那么再打包时就忽略这个上模块
+        }
+      }
+    }
+  }
+};
+```
+
+
 
 
 
