@@ -1,5 +1,10 @@
-let a = [1,2,3]
-let c =a.map(item=>{
-    return item+'__'
+function getComponent(){
+    return import('lodash').then(({default:_})=>{
+        var element = document.createElement('div')
+        element.innerHTML = _.join(['D','S','A'],'-')
+        return element;
+    })
+}
+getComponent().then(res=>{
+    document.body.append(res)
 })
-console.log(c)

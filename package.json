@@ -4,10 +4,11 @@
   "description": "是一个模块打包工具，接收CommonJS，ES module ,CMD,AMD等打包规范，能打包一切格式的文件1",
   "private": true,
   "scripts": {
-    "dev": "webpack",
-    "start": "webpack serve",
-    "middleware": "node server.js"
+    "dev": "webpack --config ./build/webpack.dev.js",
+    "start": "webpack serve --config ./build/webpack.dev.js",
+    "prod": "webpack --config ./build/webpack.prod.js"
   },
+  "sideEffects":["*.css"],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/F1RE1NTHE0ARK/webpack_learning.git"

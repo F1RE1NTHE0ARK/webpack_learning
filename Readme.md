@@ -102,6 +102,7 @@ const path = require('path') //node的路径模块
 module.exports = {
     //代表入口，相当于
     //entry:{main:'./index.js'}
+    //main称为一个webpack的chunk name
     entry: './index.js',
     //代表出口
     output: {
@@ -549,4 +550,224 @@ rules:[
     }
 ]
 ```
+
+## 使用Tree Shaking不打包未使用的代码
+
+> !只有es module规范的引入支持，即不支持require等引入方法
+
+例子：
+
+``` javascript
+//math.js
+export const add =(a,b)=>{
+    console.log(a+b)
+}
+export const minus = (a,b)=>{
+    console.log(a-b)
+}
+
+//index.js
+//只导入了add，或导入minus，但不使用minus都会触发tree shaking
+import {add} from './math'
+add(1,2)
+// minus(2,1)
+```
+
+
+
+使用tree shaking，只需要在webpack.config.js里配置即可
+
+``` javascript
+{
+    ...
+    output: {... },
+    optimization:{
+        //开发环境下此时输出的js里依然会打包你没使用过的输出
+        //但会用注释标出来，告诉你哪个输出没使用
+        ///* harmony export */ });
+		/* unused harmony export minus */
+        //如果是生产环境，则会直接不打包没使用的输出
+        usedExports: true
+    },
+}
+```
+
+生产环境还可以进一步压缩代码体积
+
+``` javascript
+{
+    ...
+    output: {... },
+    optimization:{
+        usedExports: true, // 识别无用代码
+        minimize: true,    // 将无用代码在打包中删除
+        concatenateModules: true, // 尽可能将所有模块合并输出到一个函数中
+        removeEmptyChunks: false, //去除空的打包文件(empty chunks)
+    },
+}
+```
+
+有时候我们通过import引入了css文件，因为tree shaking检测到他没有导出东西，也可能把它无效掉，所以我们需要在package.json配置sideEffects选项
+
+- package.json和webpack配置文件中的sideEffects虽然同名，但表示的意义不同。
+
+  package.json的sideEffects：标识当前package.json所影响的项目，当中所有的代码是否有副作用
+  默认true，表示当前项目中的代码有副作用
+  webpack配置文件中的sideEffects：开启功能，是否移除无副作用的代码
+  默认false，表示不移除无副作用的模块
+  在production模式下自动开启。
+  webpack不会识别代码是否有副作用，只会读取package.json的sideEffects字段。
+
+  二者需要配合使用，才能处理无副作用的模块。
+
+``` json
+...
+"scripts": {...},
+"sideEffects":[
+    "./src/extend.js", // 标识有副作用的文件
+    "*.css", // 也可以使用路径通配符
+    "style/" // 注意目录必须带后面的/
+ ],
+```
+
+## 开发和生产环境
+
+有时开发环境的webpack配置和生产环境的配置有很多不同，如果我们要切换环境时就可能会重复修改webpack.config.js文件，所以我们可以单独配置两个环境的webpack.config配置
+
+在根目录创建两个配置文件webpack.dev.js和webpack.prod.js
+
+然后再package.json中调用
+
+``` json
+ "scripts": {
+     //如果是根目录的build文件夹，则是(相对于根目录)
+//"dev": "webpack --config ./build/webpack.dev.js",
+    "dev": "webpack --config webpack.dev.js", //开发模式打包
+    "start": "webpack serve --config webpack.dev.js", //开发模式热更新
+    "prod": "webpack --config webpack.prod.js" //生产模式打包
+  },
+```
+
+最好把配置都放到build文件夹中,记得修改output path
+
+``` js
+// build/webpack.common.js
+{
+   ...
+   output: {
+        filename: '[name].js',
+            //打包到上一层目录的dist，即根目录的dist文件夹中
+        path: path.resolve(__dirname, '../dist'),
+    },
+}
+```
+
+甚至可以把公共部分或通用部分抽出来,然后通过webpack-merge来合并配置
+
+``` javascript
+// build/webpack.common.js
+这个文件能把公共部分抽出来，包括部分公共部分
+例如:
+webpack.dev.js的plugin是[
+    new HtmlWebpackPlugin(), 
+    new CleanWebpackPlugin()
+]
+webpack.prod.js的plugin是[
+    new HtmlWebpackPlugin(), 
+    new CleanWebpackPlugin(),
+    new webpack.HotModuleReplacementPlugin()
+]
+则可以把相同的部分抽出来，则webpack.prod.js只剩下
+plugin：[new webpack.HotModuleReplacementPlugin()]
+
+//最后合并文件
+// build/webpack.dev.js
+
+const webpackMerge = require('webpack-merge')
+const commonConfig = require('./webpack.common')
+
+const devConfig = {
+    mode: 'development',
+    devtool: 'cheap-module-source-map',
+    devServer: {
+        contentBase: './dist',
+        hot: true,
+        port: 8082,
+        host: '127.0.0.1',
+        // hotOnly:true,
+        open: true,
+        compress: true,
+    },
+    plugins: [new webpack.HotModuleReplacementPlugin()],
+}
+module.exports = webpackMerge.merge(devConfig,commonConfig)
+```
+
+# lodash
+
+通过降低 array、number、objects、string 等等的使用难度从而让 JavaScript 变得更简单。 Lodash 的模块化方法 非常适用于：
+
+- 遍历 array、object 和 string
+- 对值进行操作和检测
+- 创建符合功能的函数
+
+[lodash使用](https://www.lodashjs.com/)
+
+# 分包
+
+## 手动分包
+
+通过将第三方库，单独打包来减少浏览器请求资源来优化体验
+
+``` javascript
+// lodash.js
+import _ from 'lodash'
+window._ = _;
+//index.js
+console.log(_.join(['a','b','c'],'***'))
+
+//webpack.config.js
+{
+    ...
+     entry: {
+        lodash: './src/lodash.js',
+        main: './src/index.js'
+    }
+}
+```
+
+## 自动分包
+
+通过配置webpack配置下的*optimization*内的SplitChunksPlugin来自动分包
+
+``` javascript
+{
+	...
+	optimization:{
+        splitChunks:{
+        //自动分割
+            chunks: 'all',
+        }
+    },
+}
+```
+
+## 异步加载模块
+
+``` javascript
+//动态加载lodash.js
+function getComponent(){
+    return import('lodash').then(({default:_})=>{
+        var element = document.createElement('div')
+        element.innerHTML = _.join(['D','S','A'],'-')
+        return element;
+    })
+}
+getComponent().then(res=>{
+    document.body.append(res)
+})
+
+```
+
+
 

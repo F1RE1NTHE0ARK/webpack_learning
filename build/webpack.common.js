@@ -1,36 +1,26 @@
-const path = require('path')
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const { CleanWebpackPlugin } = require('clean-webpack-plugin');
-const webpack = require('webpack')
+const path = require('path')
 
 module.exports = {
-    mode: 'development',
-    devtool: 'cheap-module-source-map',
-    devServer: {
-        contentBase: './dist',
-        hot: true,
-        port: 8082,
-        host: '127.0.0.1',
-        // hotOnly:true,
-        open: true,
-        compress: true,
-    },
-    entry: { main: './src/index.js' },
-    output: {
-        filename: '[name].js',
-        path: path.resolve(__dirname, 'dist'),
+    entry: {
+        main: './src/index.js'
     },
     plugins: [new HtmlWebpackPlugin(
         {
             template: 'src/index.html'
         }
-    ), new CleanWebpackPlugin(), new webpack.HotModuleReplacementPlugin()],
+    ), new CleanWebpackPlugin()],
+    output: {
+        filename: '[name].js',
+        path: path.resolve(__dirname, '../dist'),
+    },
     module: {
         rules: [
             {
                 test: /\.m?js$/,
                 exclude: /node_modules/,
-                use: {loader: "babel-loader"}
+                use: { loader: "babel-loader" }
             },
             {
                 test: /\.(jpg|png|gif|jpeg)$/,
