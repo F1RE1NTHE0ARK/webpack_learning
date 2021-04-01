@@ -703,6 +703,150 @@ const devConfig = {
 module.exports = webpackMerge.merge(devConfig,commonConfig)
 ```
 
+## CSS代码分割
+
+[查看](https://webpack.docschina.org/plugins/mini-css-extract-plugin/)
+
+> npm install --save-dev mini-css-extract-plugin 
+>
+> npm install css-minimizer-webpack-plugin --save-dev （可选 压缩css）
+
+webpack.config.js配置,其他配置项参考文档
+
+``` javascript
+...
+plugins:[new MiniCssExtractPlugin({
+    filename: '[name].css', //可选
+    chunkFilename: '[name].chunk.css',//可选
+})],
+module: {
+        rules: [
+            {
+                test: /\.css$/i,
+                use: [
+                    MiniCssExtractPlugin.loader,
+                    ...
+                ],
+            },
+        ]
+    },    
+```
+
+同样的splitChunks也可以分割css代码
+
+``` javascript
+splitChunks: {
+      cacheGroups: {
+        styles: {
+          name: 'styles',
+          type: 'css/mini-extract',
+          // For webpack@4
+          // test: /\.css$/,
+          chunks: 'all',
+          enforce: true,
+        },
+      },
+    },
+```
+
+## Shimming
+
+webpack垫片，处理兼容性问题。
+
+webpack基于模块打包的，变量间是隔离的
+
+``` javascript
+//ui.js
+export default function changeColor(){
+    $('body').css('background','red')
+}
+
+//index.js
+import $ from 'jquery'
+import changeColor from './ui'
+
+changeColor() // Uncaught ReferenceError: $ is not defined
+```
+
+如果想使用$则需配置webpack.config.js
+
+``` javascript
+...
+const webpack =require('webpack')
+...
+
+module.exports = {
+    ...
+    plugins: [
+        ...
+        new webpack.ProvidePlugin({
+            $:'jquery' //使用了$ ,webpack帮你自动引入
+            _map: ['lodash', 'map'], //表示遇到_map,会执行lodash模块的map方法
+        })
+             ],
+    output: {...}
+}
+```
+
+又因为webpack是基于模块打包的，所以模块内this指向模块本身，而不是window
+
+(暂无解决方法)
+
+> npm install imports-loader --save-dev
+
+## 环境变量
+
+想要消除 `webpack.config.js` 在 开发环境 和 生产环境之间的差异，你可能需要环境变量(environment variable)。
+
+```bash
+npx webpack --env NODE_ENV=local --env production --progress
+```
+
+``` javascript
+const path = require('path');
+
+module.exports = (env) => {
+  // Use env.<YOUR VARIABLE> here:
+  console.log('NODE_ENV: ', env.NODE_ENV); // 'local'
+  console.log('Production: ', env.production); // true
+
+  return {
+    entry: './src/index.js',
+    output: {
+      filename: 'bundle.js',
+      path: path.resolve(__dirname, 'dist'),
+    },
+  };
+};
+Ti
+```
+
+
+
+# 额外
+
+## 禁止将注释剥离到额外的LICENSE文件
+
+配置webpack.config.js
+
+``` javascript
+const TerserPlugin = require("terser-webpack-plugin");
+
+...
+{
+    optimization:{
+        minimizer: [
+            new CssMinimizerPlugin(),
+            new TerserPlugin({
+                extractComments: false, //是否将注释剥离到单独的文件中
+            })
+        ],
+    }
+}
+```
+
+
+
 # lodash
 
 通过降低 array、number、objects、string 等等的使用难度从而让 JavaScript 变得更简单。 Lodash 的模块化方法 非常适用于：
@@ -787,10 +931,13 @@ module.exports = {
       maxInitialRequests: 4, // 入口文件做代码分割最多分成 4 个 js 文件
       automaticNameDelimiter: '~', // 文件生成时的连接符
       automaticNameMaxLength: 30, // 自动生成的文件名的最大长度
+      //满足了上面的条件后会进到这里检查需要分包到哪个组
+        //如果default:false又不满足其他组的test条件时
+        //则不分包
       cacheGroups: {
         vendors: {
           test: /[\\/]node_modules[\\/]/, // 位于node_modules中的模块做代码分割
-          priority: -10, // 根据优先级决定打包到哪个组里，例如一个 node_modules 中的模块进行代码
+          priority: -10, // 越大越优先，根据优先级决定打包到哪个组里，例如一个 node_modules 中的模块进行代码
             filename = "vendor.js" //用于自定义分类名称，支持占位符
         }, // 分割，，既满足 vendors，又满足 default，那么根据优先级会打包到 vendors 组中。
         default: { // 没有 test 表明所有的模块都能进入 default 组，但是注意它的优先级较低。
@@ -803,7 +950,75 @@ module.exports = {
 };
 ```
 
+# 模块懒加载
 
+配合异步加载模块，在任何操作之后再加载模块的方式
+
+``` javascript
+async function getComponent(){
+    const element = document.createElement('div')
+    const { default: _ } = await import(/* webpackChunkName:"lodash" */'lodash');
+    element.innerHTML = _.join(['D','S','A'],'-')
+    return element;
+}
+
+document.addEventListener('click',()=>{
+    getComponent().then(res=>{
+        document.body.append(res)
+    })
+    
+})
+
+
+```
+
+# 打包分析
+
+用来分析打包的大小，各个分包打包的耗时和大小
+
+[打包分析网站](http://webpack.github.io/analyse/)
+
+[其他分析工具](https://webpack.docschina.org/guides/code-splitting/#bundle-analysis)
+
+# 预加载预获取
+
+- preload chunk 会在父 chunk 加载时，以并行方式开始加载。prefetch chunk 会在父 chunk 加载结束后开始加载。
+- preload chunk 具有中等优先级，并立即下载。prefetch chunk 在浏览器闲置时下载。
+- preload chunk 会在父 chunk 中立即请求，用于当下时刻。prefetch chunk 会用于未来的某个时刻。
+
+异步加载代码的好处是可以提高代码利用率
+
+chrome通过到控制台source里按ctrl+shift+p 搜索show coverage来打开监听器
+
+**提高代码利用率有利于提高加载速度**
+
+``` javascript
+//原本
+document.addEventListener('click',()=>{
+    // getComponent().then(res=>{
+    //     document.body.append(res)
+    // })
+    const element = document.createElement('div')
+    element.innerHTML = 'shit'
+    document.body.append(res)
+})
+//优化：
+//click.js
+function handleClick(){
+    const element = document.createElement('div')
+    element.innerHTML = 'shit'
+    document.body.append(element)
+}
+export default handleClick
+
+//index.js
+document.addEventListener('click',()=>{
+  import(/* webpackPrefetch: true */'./click').then(({default:func})=>{
+    func()
+  })
+})
+
+```
 
 
 
