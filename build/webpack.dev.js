@@ -19,9 +19,14 @@ const commonConfig = require('./webpack.common')
     module: {
         rules: [
             {
+                test: /\.tsx?$/,
+                exclude: /node_modules/,
+                use: 'ts-loader'
+            },
+            {
                 test: /\.m?js$/,
                 exclude: /node_modules/,
-                use: [{ loader: "babel-loader" },{loader:"import-loader?this=>window"}]
+                use: [{ loader: "babel-loader" }]
             },
             {
                 test: /\.(jpg|png|gif|jpeg)$/,

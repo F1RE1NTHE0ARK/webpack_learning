@@ -170,7 +170,7 @@ rules:[
     ...
     {
         test: /\.s[ac]ss$/i,
-        //要按顺序添加
+        //要按顺序添加，从后到前执行
         use: [
             "style-loader",
             "css-loader",
@@ -326,6 +326,8 @@ module.exports = {
 
 ## webpack-dev-server实现热更新
 
+[其他配置参考](https://webpack.docschina.org/configuration/dev-server/#devserverhistoryapifallback)
+
 我们需要实现更新代码的同时实时更新更新页面
 
 webpack5直接配置webpack.config.js即可
@@ -337,7 +339,7 @@ const webpack = require('webpack') //引入以使用webpack自带的热更新插
 plugins: [...,new webpack.HotModuleReplacementPlugin()],
 devServer: {
     contentBase: "./dist",//本地服务器所加载的页面所在的目录
-    historyApiFallback: true,//不跳转
+    historyApiFallback: true,//不跳转,所有的 404 请求都会响应 index.html 的内容,用于单页面应用跳转
     host:'127.0.0.1', //相当于localhost
     port:8080,
     inline: true,//实时刷新
@@ -1020,5 +1022,69 @@ document.addEventListener('click',()=>{
 
 ```
 
+# 打包typescript
 
+其实学习[typescript重构axios](https://coding.imooc.com/lesson/330.html#mid=25973)已经学过了
+
+> npm instaill ts-loader typescript -D
+
+根路径配置tsconfig.json
+
+``` json
+{
+    "compilerOptions": {
+      "moduleResolution": "node",
+      "target": "es5",
+      "module":"es2015",
+      "lib": ["es2015", "es2016", "es2017", "dom"],
+      "strict": true,
+      "sourceMap": true,
+      "declaration": true,
+      "allowSyntheticDefaultImports": true,
+      "experimentalDecorators": true,
+      "emitDecoratorMetadata": true,
+      "declarationDir": "dist/types",
+      "typeRoots": [
+        "node_modules/@types"
+      ]
+    },
+    //编译哪里的js文件
+    //这里不配置html-webpack-plugin或其他js库会报错
+    "include": [
+      "src"
+    ]
+  }
+```
+
+若想在typscript中使用lodash，jquery等第三方库
+
+要安装对于@types文件,用下面的参考搜索库名字即可
+
+[参考](https://www.typescriptlang.org/dt/search?search=jquery)
+
+# Eslint配置中webpack(傻逼才用)
+
+> npm install eslint -D
+>
+> npx eslint --init 初始化配置文件
+>
+> npx eslint src 对src文件夹下文件进行验证
+
+自动化检验
+
+vs code安装eslint插件 
+
+或者
+
+配置webpack.config.js
+
+``` javascript
+//npm install eslint-loader -D
+{
+    test: /\.m?js$/,
+        exclude: /node_modules/,
+            use: [{ loader: "babel-loader" },{lodaer:'eslint-loader',options:{fix:true //自动修复简单错误
+                                                                             }}]
+},
+```
 
