@@ -1380,4 +1380,39 @@ package.json
 
 理解webpack的一些打包原理
 
+创建三个文件index.js(入口文件)，message.js（模块1），word.js（模块）
+
+``` javascript
+//index.js
+import message from './message.js'
+console.log(message)
+//message.js
+import {word} from './word.js'
+
+export default `say ${word}`
+//word.js
+export const word = 'hello'
+```
+
+创建bundler.js，这相当于webpack.config.js
+
+``` javascript
+const fs = require('fs'); //用来读取文件
+const parser =require('@babel/parser') //用来解析文件
+
+const moduleAnalyser =(filename)=>{
+    const content = fs.readFileSync(filename,'utf-8') //读取目标文件
+    //将文件内容转为抽象语法书（ast）
+    //树上的每个节点都表示源代码中的一种结构，例如ImportDeclaration（是一个导入语法），ExpressionStatement（一个表达式）
+    const ast = parser.parse(content,{
+        sourceType:'module'
+    })
+    console.log(ast.program.body)
+}
+
+moduleAnalyser('./src/index.js')
+```
+
+
+
 配置模块如何解析
