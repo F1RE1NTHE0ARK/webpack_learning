@@ -5,15 +5,13 @@ const webpack =require('webpack')
 
 module.exports = {
     entry: {
-        main: './src/index.js'
+        main: './src/index.js',
     },
     plugins: [new HtmlWebpackPlugin(
         {
             template: 'src/index.html'
         }
-    ), new CleanWebpackPlugin(),new webpack.ProvidePlugin({
-        $:'jquery'
-    })],
+    ), new CleanWebpackPlugin()],
     output: {
         filename: '[name].js',
         chunkFilename:'[name].chunk.js',

@@ -1087,3 +1087,297 @@ vs code安装eslint插件
                                                                              }}]
 },
 ```
+
+# webpack优化
+
+## resolve
+
+**reolve配置过多会影响打包性能**
+
+### resolve.extensions
+
+尝试按顺序解析这些后缀名,如果有多个文件有相同的名字，但后缀名不同，webpack 会解析列在数组首位的后缀的文件 并跳过其余的后缀。
+
+``` javascript
+//webpack.config.js
+module.exports = {
+  //...
+  resolve: {
+      //例如import component from './src/child'
+      //则尝试以child.wasm,child.mjs,child.js,child.json的顺序去查找对应文件
+    extensions: ['.wasm', '.mjs', '.js', '.json'],
+  },
+};
+```
+
+### resolve.mainFiles
+
+尝试按顺序来解析目录下的默认文件
+
+```javascript
+//webpack.config.js
+module.exports = {
+  //...
+  resolve: {
+      //例如import child from './child'
+      //则会查找./child/index文件，再查找./child/main文件，直到找到为止
+    mainFiles: ['index','main'],
+  },
+};
+```
+
+### resolve.alias
+
+路径别名
+
+``` javascript
+const path = require('path');
+
+module.exports = {
+  //...
+  resolve: {
+    alias: {
+        //此时 import sth from 'Utiities/sth'
+        //相当于import sth from 'src/utilities/sth'
+      Utilities: path.resolve(__dirname, 'src/utilities/'),
+      Templates: path.resolve(__dirname, 'src/templates/'),
+    },
+  },
+};
+```
+
+### 其他resolve
+
+[参考](https://webpack.docschina.org/configuration/resolve/#resolvealias)
+
+## 映射
+
+通过将第三方库都打包到一个文件，然后再webpack中配置映射来提高**开发时**的打包速度
+
+新建webpack.dll.js或者其他名字,配置完记得**先运行生成dll文件夹等**
+
+``` javascript
+const path = require('path');
+const webpack = require('webpack');
+
+module.exports = {
+	mode: 'production',
+	entry: {
+        //将第三方库都输出单独文件
+		vendors: ['lodash'],
+		react: ['react', 'react-dom'],
+		jquery: ['jquery']
+	},
+	output: {
+		filename: '[name].dll.js',
+        //都输出到dll文件夹
+		path: path.resolve(__dirname, '../dll'),
+        //把引用名改为chunk name，之后便可以在页面中使用这个名字引用
+		library: '[name]'
+	},
+	plugins: [
+        //此插件用于在单独的 webpack 配置中创建一个 dll-only-bundle。 此插件会生成一个名为 manifest.json 的文件，这个文件是用于让 DllReferencePlugin 能够映射到相应的依赖上。
+        //https://webpack.docschina.org/plugins/dll-plugin/
+		new webpack.DllPlugin({
+            //暴露出的 DLL 的函数名，即上面的library同名
+			name: '[name]',
+			path: path.resolve(__dirname, '../dll/[name].manifest.json'),
+		})
+	]
+}
+```
+
+然后在webpack.config.js中配置
+
+``` javascript
+const AddAssetHtmlWebpackPlugin = require('add-asset-html-webpack-plugin')
+...
+plugins:[
+    //npm install add-asset-html-webpack-plugin -D
+    new AddAssetHtmlWebpackPlugin({
+       filepath:path.resolve(__dirname,'文件名') //将文件插入自动生成的html中 
+    }),
+    new webpack.DllReferencePlugin({
+        //包含 content 和 name 的对象，或者是一个字符串 —— 编译时用于加载 JSON manifest 的绝对路径
+        manifest:path.resolve(__dirname,'文件名.manifest.json') //插入文件对应的json文件
+    }),
+    
+    //如果有多个manifest的文件（例如上面有vendors,react和jquery）则添加多个插入即可
+    new AddAssetHtmlWebpackPlugin(...),
+    new webpack.DllReferencePlugin(...),
+                                   
+]
+```
+
+但有时候有太多的manifest文件，这样加很繁琐，所以我们可以这样:
+
+``` javascript
+const plugins = [
+	new HtmlWebpackPlugin({
+		template: 'src/index.html'
+	}), 
+	new CleanWebpackPlugin(['dist'], {
+		root: path.resolve(__dirname, '../')
+	})
+];
+
+const files = fs.readdirSync(path.resolve(__dirname, '../dll')); 
+files.forEach(file => {
+    //匹配推入
+	if(/.*\.dll.js/.test(file)) {
+		plugins.push(new AddAssetHtmlWebpackPlugin({
+			filepath: path.resolve(__dirname, '../dll', file)
+		}))
+	}
+	if(/.*\.manifest.json/.test(file)) {
+		plugins.push(new webpack.DllReferencePlugin({
+			manifest: path.resolve(__dirname, '../dll', file)
+		}))
+	}
+})
+```
+
+### 关于Fs
+
+``` javascript
+reddirSync是一个同步读取的文件内容的语法
+fs.readdirSync(path.resolve(__dirname, '../dll'));//这里会读取该目录下所有文件
+
+//reduce是es6的一个数组方法，为数组中的每一个元素依次执行回调函数，不包括数组中被删除或从未被赋值的元素，接受四个参数：初始值(或者上一次回调函数的返回值)，当前元素值，当前索引，调用 reduce 的数组。
+
+例子:
+arr.reduce((prev,cur)=>{
+    console.log('上一次',prev)
+    console.log('当前',cur)
+    return prev+cur
+},0)
+//结果
+//上一次 0
+//当前 1
+//上一次 1
+//当前 2
+//上一次 3
+//当前 3
+
+//最终值6
+
+```
+
+## 多页面应用打包
+
+配置webpack.config.js
+
+``` javascript
+module.exports = {
+    entry: {
+        main: './src/index.js',
+        list: './src/list.js'
+    },
+    //其他配置参考htmlWebpackPlugin的github网站
+    //https://github.com/jantimon/html-webpack-plugin#options
+    plugins: [new HtmlWebpackPlugin(
+        {
+            filename:'index.html',//名字
+            chunks:['main'],//需要包含的模块
+            template: 'src/index.html' //使用的模板
+        }
+    ),new HtmlWebpackPlugin(
+        {
+            filename:'list.html',
+            chunks:['list'],
+            template: 'src/index.html'
+        }
+    ), new CleanWebpackPlugin()],
+    ...
+}
+```
+
+# 自定义loader
+
+自己写一个js
+
+``` javascript
+//这个loader的作用是把shit替换为not a shit
+module.exports = (source)=>{
+    return source.replace('shit','not a shit')
+}
+```
+
+在webpack.config.js中配置
+
+``` javascript
+...
+rules:[
+    {
+        test:/\.js/,
+        use:[{
+            loader:path.resolve(__dirname,'../src/replaceLoader.js')
+        }]
+    }
+]
+...
+```
+
+[其他参考](https://webpack.docschina.org/api/loaders/#thisquery)
+
+# 自定义plugin
+
+[参考](https://webpack.docschina.org/api/compilation-hooks/#additionalassets)
+
+创建一个js文件
+
+``` javascript
+class SomePlugin {
+    //这个是plugin里面写的配置
+    constructor(options){
+        console.log('芜湖',options)
+        // 芜湖,{name:'我我我我'}
+    }
+    //compiler是一个webpack的实例
+    apply(compiler){
+        debugger; //debug模式下的断点
+        //compiler是一个钩子他有非常多的方法
+        //下面一个方法简单来说就是在emit时刻（具体定义查看文档）往生成的dist或者其他输出文件夹中
+        //多添加一个叫__11.txt的文件
+         compiler.hooks.emit.tapAsync('SomePlugin',(compilation,cb)=>{
+             console.log('我要插入了！')
+             compilation.assets['__11.txt']={
+                 //下面是一些文件信息
+                 source:function(){
+                     return 'motherfucker'
+                 },
+                 size:function(){
+                     return 12
+                 }
+             }
+             cb()
+         })
+    }
+}
+module.exports = SomePlugin
+```
+
+``` javascript
+//webpack.config.js
+...
+ plugins: [new webpack.HotModuleReplacementPlugin(),new SomePlugin({
+     name:'我我我我'
+ })],
+...
+```
+
+## 借助node对plugin来debug
+
+package.json
+
+``` json
+"scripts": {
+    "debug":"node --inspect --inspect-brk node_modules/webpack/bin/webpack.js"
+  },
+```
+
+# bundler源码
+
+理解webpack的一些打包原理
+
+配置模块如何解析

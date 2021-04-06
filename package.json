@@ -4,6 +4,7 @@
   "description": "是一个模块打包工具，接收CommonJS，ES module ,CMD,AMD等打包规范，能打包一切格式的文件1",
   "private": true,
   "scripts": {
+    "debug":"node --inspect --inspect-brk node_modules/webpack/bin/webpack.js",
     "analyse": "webpack --profile --json > stats.json --config ./build/webpack.dev.js",
     "dev": "webpack --config ./build/webpack.dev.js",
     "start": "webpack serve --config ./build/webpack.dev.js",

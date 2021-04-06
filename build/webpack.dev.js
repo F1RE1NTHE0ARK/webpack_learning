@@ -1,7 +1,7 @@
 const webpack = require('webpack')
 const webpackMerge = require('webpack-merge')
 const commonConfig = require('./webpack.common')
-
+const SomePlugin = require('../src/somePlugin')
 
  const devConfig = {
     mode: 'development',
@@ -15,7 +15,9 @@ const commonConfig = require('./webpack.common')
         open: true,
         compress: true,
     },
-    plugins: [new webpack.HotModuleReplacementPlugin()],
+    plugins: [new webpack.HotModuleReplacementPlugin(),new SomePlugin({
+        name:'我我我我'
+    })],
     module: {
         rules: [
             {
